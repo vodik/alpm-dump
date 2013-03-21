@@ -13,7 +13,8 @@
 
 enum {
     ROW_STRING,
-    ROW_LIST
+    ROW_LIST,
+    ROW_DEPLIST
 };
 
 struct table {
@@ -52,20 +53,20 @@ static size_t string_length(const char *s)
 
 unsigned short getcols(int fd)
 {
-	const unsigned short default_tty = 80;
-	const unsigned short default_notty = 0;
-	unsigned short termwidth = 0;
+    const unsigned short default_tty = 80;
+    const unsigned short default_notty = 0;
+    unsigned short termwidth = 0;
 
-	if(!isatty(fd)) {
-		return default_notty;
-	}
+    if(!isatty(fd)) {
+        return default_notty;
+    }
 
-	struct winsize win;
-	if(ioctl(fd, TIOCGWINSZ, &win) == 0) {
-		termwidth = win.ws_col;
-	}
+    struct winsize win;
+    if(ioctl(fd, TIOCGWINSZ, &win) == 0) {
+        termwidth = win.ws_col;
+    }
 
-	return termwidth == 0 ? default_tty : termwidth;
+    return termwidth == 0 ? default_tty : termwidth;
 }
 
 struct indenter {
@@ -73,6 +74,7 @@ struct indenter {
     size_t cidx;
 };
 
+/* void indentprint_r(const char *str, unsigned short indent, unsigned short cols, size_t **wcstr) */
 void indentprint_r(struct indenter **i, const char *str, unsigned short indent, unsigned short cols)
 {
     wchar_t *wcstr;
@@ -203,6 +205,14 @@ static void add_list_row(struct table *table, const char *title, fetch_list_fn f
     row->id = ROW_LIST;
 }
 
+static void add_deplist_row(struct table *table, const char *title, fetch_list_fn fetch)
+{
+    struct table_row *row = new_row(table, title);
+
+    row->list_fn = fetch;
+    row->id = ROW_DEPLIST;
+}
+
 static void print_list(struct table *table, alpm_list_t *list)
 {
     if(list == NULL) {
@@ -220,6 +230,25 @@ static void print_list(struct table *table, alpm_list_t *list)
     }
 }
 
+static void print_deplist(struct table *table, alpm_list_t *list)
+{
+    if(list == NULL) {
+        printf("None\n");
+    } else {
+        alpm_list_t *i;
+        struct indenter *state = NULL;
+
+        for(i = list; i; i = alpm_list_next(i)) {
+            const alpm_depend_t *dep = i->data;
+            const char *entry = alpm_dep_compute_string(dep);
+
+            indentprint_r(&state, entry, table->width + 3, table->cols);
+            indentpad_r(&state, 2);
+        }
+        printf("\n");
+    }
+}
+
 static void print_table(struct table *table, alpm_pkg_t *pkg)
 {
     alpm_list_t *i;
@@ -228,16 +257,18 @@ static void print_table(struct table *table, alpm_pkg_t *pkg)
         const struct table_row *row = i->data;
         struct indenter *state = NULL;
 
+        printf("%-*s : ", (int)table->width, row->title);
         switch(row->id) {
         case ROW_STRING:
-            printf("%-*s : ", (int)table->width, row->title);
             indentprint_r(&state, row->string_fn(pkg), table->width + 3, table->cols);
             /* indentprint_r(&state, row->string_fn(pkg), 0, 0); */
             printf("\n");
             break;
         case ROW_LIST:
-            printf("%-*s : ", (int)table->width, row->title);
             print_list(table, row->list_fn(pkg));
+            break;
+        case ROW_DEPLIST:
+            print_deplist(table, row->list_fn(pkg));
             break;
         }
     }
@@ -286,14 +317,17 @@ int main(int argc, char *argv[])
     alpm_list_t *sync_dbs = sync_dbs = alpm_get_syncdbs(handle);
 
     struct table *table = new_table();
-    add_string_row(table, "Repository",   alpm_pkg_get_dbname);
-    add_string_row(table, "Name",         alpm_pkg_get_name);
-    add_string_row(table, "Version",      alpm_pkg_get_version);
-    add_string_row(table, "Description",  alpm_pkg_get_desc);
-    add_string_row(table, "Architecture", alpm_pkg_get_arch);
-    add_string_row(table, "URL",          alpm_pkg_get_url);
-    add_list_row(table,   "Licenses",     alpm_pkg_get_licenses);
-    add_list_row(table,   "Groups",       alpm_pkg_get_groups);
+    add_string_row(table,  "Repository",   alpm_pkg_get_dbname);
+    add_string_row(table,  "Name",         alpm_pkg_get_name);
+    add_string_row(table,  "Version",      alpm_pkg_get_version);
+    add_string_row(table,  "Description",  alpm_pkg_get_desc);
+    add_string_row(table,  "Architecture", alpm_pkg_get_arch);
+    add_string_row(table,  "URL",          alpm_pkg_get_url);
+    add_list_row(table,    "Licenses",     alpm_pkg_get_licenses);
+    add_list_row(table,    "Groups",       alpm_pkg_get_groups);
+    add_string_row(table,  "Packager",     alpm_pkg_get_packager);
+    add_deplist_row(table, "Provides",     alpm_pkg_get_provides);
+    add_deplist_row(table, "Depends On",   alpm_pkg_get_depends);
 
     if(sync) {
         const char *dbs[] = {
