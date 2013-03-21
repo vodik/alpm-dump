@@ -68,15 +68,30 @@ unsigned short getcols(int fd)
 	return termwidth == 0 ? default_tty : termwidth;
 }
 
+struct indenter {
+    unsigned short indent, cols;
+    size_t cidx;
+};
 
-void indentprint(const char *str, unsigned short indent, unsigned short cols)
+void indentprint_r(struct indenter **i, const char *str, unsigned short indent, unsigned short cols)
 {
     wchar_t *wcstr;
     const wchar_t *p;
-    size_t len, cidx;
+    size_t len;
 
     if(!str) {
         return;
+    }
+
+    /* TODO: CLEANUP, maybe size_t *cidx = ... */
+    if(*i == NULL) {
+        *i = malloc(sizeof(struct indenter));
+        (*i)->indent = indent;
+        (*i)->cols = cols;
+        (*i)->cidx = indent;
+    } else {
+        indent = (*i)->indent;
+        cols = (*i)->cols;
     }
 
     /* if we're not a tty, or our tty is not wide enough that wrapping even makes
@@ -91,14 +106,14 @@ void indentprint(const char *str, unsigned short indent, unsigned short cols)
     len = mbstowcs(wcstr, str, len);
 
     /* if it turns out the string will fit, just print it */
-    if(len < cols - indent) {
+    if(len < cols - indent - (*i)->cidx) {
         fputs(str, stdout);
         free(wcstr);
+        (*i)->cidx += len;
         return;
     }
 
     p = wcstr;
-    cidx = indent;
 
     if(!p || !len) {
         return;
@@ -124,20 +139,28 @@ void indentprint(const char *str, unsigned short indent, unsigned short cols)
                 len += wcwidth(*q);
             }
 
-            if(len + 1 > cols - cidx) {
+            if(len + 1 > cols - (*i)->cidx) {
                 /* wrap to a newline and reindent */
                 printf("\n%-*s", (int)indent, "   ");
-                cidx = indent;
+                (*i)->cidx = indent;
             } else {
                 printf(" ");
-                cidx++;
+                (*i)->cidx++;
             }
         } else {
             printf("%lc", (wint_t)*p++);
-            cidx += wcwidth(*p);
+            (*i)->cidx += wcwidth(*p);
         }
     }
     free(wcstr);
+}
+
+/* TODO: actually implement */
+static void indentpad_r(struct indenter **i, int __attribute__((unused)) pad)
+{
+    if(*i == NULL)
+        return;
+    indentprint_r(i, "  ", 0, 0);
 }
 
 static struct table *new_table(void)
@@ -180,16 +203,18 @@ static void add_list_row(struct table *table, const char *title, fetch_list_fn f
     row->id = ROW_LIST;
 }
 
-static void print_list(alpm_list_t *list)
+static void print_list(struct table *table, alpm_list_t *list)
 {
     if(list == NULL) {
         printf("None\n");
     } else {
         alpm_list_t *i;
+        struct indenter *state = NULL;
 
         for(i = list; i; i = alpm_list_next(i)) {
             const char *entry = i->data;
-            printf("%s  ", entry);
+            indentprint_r(&state, entry, table->width + 3, table->cols);
+            indentpad_r(&state, 2);
         }
         printf("\n");
     }
@@ -201,16 +226,18 @@ static void print_table(struct table *table, alpm_pkg_t *pkg)
 
     for(i = table->table; i; i = alpm_list_next(i)) {
         const struct table_row *row = i->data;
+        struct indenter *state = NULL;
 
         switch(row->id) {
         case ROW_STRING:
             printf("%-*s : ", (int)table->width, row->title);
-            indentprint(row->string_fn(pkg), (unsigned short)table->width + 3, table->cols);
+            indentprint_r(&state, row->string_fn(pkg), table->width + 3, table->cols);
+            /* indentprint_r(&state, row->string_fn(pkg), 0, 0); */
             printf("\n");
             break;
         case ROW_LIST:
             printf("%-*s : ", (int)table->width, row->title);
-            print_list(row->list_fn(pkg));
+            print_list(table, row->list_fn(pkg));
             break;
         }
     }
