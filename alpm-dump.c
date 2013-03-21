@@ -69,13 +69,7 @@ unsigned short getcols(int fd)
     return termwidth == 0 ? default_tty : termwidth;
 }
 
-struct indenter {
-    unsigned short indent, cols;
-    size_t cidx;
-};
-
-/* void indentprint_r(const char *str, unsigned short indent, unsigned short cols, size_t **wcstr) */
-void indentprint_r(struct indenter **i, const char *str, unsigned short indent, unsigned short cols)
+void indentprint_r(const char *str, unsigned short indent, unsigned short cols, size_t *cidx)
 {
     wchar_t *wcstr;
     const wchar_t *p;
@@ -85,15 +79,8 @@ void indentprint_r(struct indenter **i, const char *str, unsigned short indent, 
         return;
     }
 
-    /* TODO: CLEANUP, maybe size_t *cidx = ... */
-    if(*i == NULL) {
-        *i = malloc(sizeof(struct indenter));
-        (*i)->indent = indent;
-        (*i)->cols = cols;
-        (*i)->cidx = indent;
-    } else {
-        indent = (*i)->indent;
-        cols = (*i)->cols;
+    if(*cidx < indent) {
+        *cidx = indent;
     }
 
     /* if we're not a tty, or our tty is not wide enough that wrapping even makes
@@ -108,10 +95,10 @@ void indentprint_r(struct indenter **i, const char *str, unsigned short indent, 
     len = mbstowcs(wcstr, str, len);
 
     /* if it turns out the string will fit, just print it */
-    if(len < cols - indent - (*i)->cidx) {
+    if(len < cols - indent - *cidx) {
         fputs(str, stdout);
         free(wcstr);
-        (*i)->cidx += len;
+        *cidx += len;
         return;
     }
 
@@ -141,28 +128,26 @@ void indentprint_r(struct indenter **i, const char *str, unsigned short indent, 
                 len += wcwidth(*q);
             }
 
-            if(len + 1 > cols - (*i)->cidx) {
+            if(len + 1 > cols - *cidx) {
                 /* wrap to a newline and reindent */
                 printf("\n%-*s", (int)indent, "   ");
-                (*i)->cidx = indent;
+                *cidx = indent;
             } else {
                 printf(" ");
-                (*i)->cidx++;
+                (*cidx)++;
             }
         } else {
             printf("%lc", (wint_t)*p++);
-            (*i)->cidx += wcwidth(*p);
+            *cidx += wcwidth(*p);
         }
     }
     free(wcstr);
 }
 
 /* TODO: actually implement */
-static void indentpad_r(struct indenter **i, int __attribute__((unused)) pad)
+static void indentpad_r(int __attribute__((unused)) pad, size_t *cidx)
 {
-    if(*i == NULL)
-        return;
-    indentprint_r(i, "  ", 0, 0);
+    indentprint_r("  ", 0, 0, cidx);
 }
 
 static struct table *new_table(void)
@@ -219,12 +204,12 @@ static void print_list(struct table *table, alpm_list_t *list)
         printf("None\n");
     } else {
         alpm_list_t *i;
-        struct indenter *state = NULL;
+        size_t cidx = 0;
 
         for(i = list; i; i = alpm_list_next(i)) {
             const char *entry = i->data;
-            indentprint_r(&state, entry, table->width + 3, table->cols);
-            indentpad_r(&state, 2);
+            indentprint_r(entry, table->width + 3, table->cols, &cidx);
+            indentpad_r(2, &cidx);
         }
         printf("\n");
     }
@@ -236,14 +221,14 @@ static void print_deplist(struct table *table, alpm_list_t *list)
         printf("None\n");
     } else {
         alpm_list_t *i;
-        struct indenter *state = NULL;
+        size_t cidx = 0;
 
         for(i = list; i; i = alpm_list_next(i)) {
             const alpm_depend_t *dep = i->data;
             const char *entry = alpm_dep_compute_string(dep);
 
-            indentprint_r(&state, entry, table->width + 3, table->cols);
-            indentpad_r(&state, 2);
+            indentprint_r(entry, table->width + 3, table->cols, &cidx);
+            indentpad_r(2, &cidx);
         }
         printf("\n");
     }
@@ -255,13 +240,13 @@ static void print_table(struct table *table, alpm_pkg_t *pkg)
 
     for(i = table->table; i; i = alpm_list_next(i)) {
         const struct table_row *row = i->data;
-        struct indenter *state = NULL;
+        size_t cidx = 0;
 
         printf("%-*s : ", (int)table->width, row->title);
         switch(row->id) {
         case ROW_STRING:
-            indentprint_r(&state, row->string_fn(pkg), table->width + 3, table->cols);
-            /* indentprint_r(&state, row->string_fn(pkg), 0, 0); */
+            indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, &cidx);
+            /* indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, &cidx); */
             printf("\n");
             break;
         case ROW_LIST:
