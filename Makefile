@@ -1,5 +1,5 @@
 CFLAGS := -std=c99 \
-	-Wall -Wextra -pedantic \
+	-Wall -Wextra -pedantic -O2 \
 	${CFLAGS}
 
 LDLIBS = -lalpm
