@@ -75,18 +75,19 @@ static unsigned short getcols(int fd)
     return termwidth == 0 ? default_tty : termwidth;
 }
 
-static void indentprint_r(const char *str, unsigned short indent, unsigned short cols, size_t *cidx)
+static void indentprint_r(const char *str, unsigned short indent, unsigned short cols, size_t *saveidx)
 {
     wchar_t *wcstr;
     const wchar_t *p;
     size_t len;
+    size_t cidx = saveidx ? *saveidx : 0;
 
     if(!str) {
         return;
     }
 
-    if(*cidx < indent) {
-        *cidx = indent;
+    if(cidx < indent) {
+        cidx = indent;
     }
 
     /* if we're not a tty, or our tty is not wide enough that wrapping even makes
@@ -102,11 +103,12 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
     len = wcswidth(wcstr, len);
 
     /* if it turns out the string will fit, just print it */
-    if(len + 1 <= cols - *cidx) {
+    if(len + 1 <= cols - cidx) {
         /* fputs(str, stdout); */
         printf(YELLOW "%s" NOCOLOR, str);
         free(wcstr);
-        *cidx += len;
+        if(saveidx)
+            *saveidx += len;
         return;
     }
 
@@ -129,10 +131,10 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
         len += wcwidth(*q);
     }
 
-    if(len + 1 > cols - *cidx) {
+    if(len + 1 > cols - cidx) {
         /* wrap to a newline and reindent */
         printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
-        *cidx = indent;
+        cidx = indent;
     }
 
     while(*p) {
@@ -156,19 +158,22 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
                 len += wcwidth(*q);
             }
 
-            if(len + 1 > cols - *cidx) {
+            if(len + 1 > cols - cidx) {
                 /* wrap to a newline and reindent */
                 printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
-                *cidx = indent;
+                cidx = indent;
             } else {
                 printf(" ");
-                (*cidx)++;
+                cidx++;
             }
         } else {
             printf(RED "%lc" NOCOLOR, (wint_t)*p++);
-            *cidx += wcwidth(*p);
+            cidx += wcwidth(*p);
         }
     }
+
+    if(saveidx)
+        *saveidx = cidx;
     free(wcstr);
 }
 
@@ -275,13 +280,11 @@ static void print_table(struct table *table, alpm_pkg_t *pkg)
 
     for(i = table->table; i; i = alpm_list_next(i)) {
         const struct table_row *row = i->data;
-        size_t cidx = 0;
 
         printf("%-*s : ", (int)table->width, row->title);
         switch(row->id) {
         case ROW_STRING:
-            indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, &cidx);
-            /* indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, &cidx); */
+            indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, NULL);
             printf("\n");
             break;
         case ROW_LIST:
