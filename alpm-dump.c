@@ -106,9 +106,9 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
     if(len + 1 <= cols - cidx) {
         /* fputs(str, stdout); */
         printf(YELLOW "%s" NOCOLOR, str);
-        free(wcstr);
         if(saveidx)
             *saveidx += len;
+        free(wcstr);
         return;
     }
 
