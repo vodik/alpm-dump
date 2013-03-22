@@ -14,6 +14,7 @@
 #define NOCOLOR "\033[0m"
 #define RED     "\033[0;31m"
 #define YELLOW  "\033[0;33m"
+#define BLUE    "\033[0;34m"
 #define BOLDRED "\033[1;31m"
 
 enum {
@@ -103,11 +104,11 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
     len = wcswidth(wcstr, len);
 
     /* if it turns out the string will fit, just print it */
-    if(len + 1 <= cols - cidx) {
+    if(len + 1 < cols - cidx) {
         /* fputs(str, stdout); */
         printf(YELLOW "%s" NOCOLOR, str);
         if(saveidx)
-            *saveidx += len;
+            *saveidx = cidx + len;
         free(wcstr);
         return;
     }
@@ -131,7 +132,18 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
         len += wcwidth(*q);
     }
 
-    if(len + 1 > cols - cidx) {
+    if(len + 1 > cols - indent) {
+        /* line is going to be too long, don't even bother trying to
+         * wrap it */
+        if(cidx > indent)
+            printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
+
+        printf(BLUE "%s" NOCOLOR, str);
+        if(saveidx)
+            *saveidx = cols - 1;
+        free(wcstr);
+        return;
+    } else if(len + 1 > cols - cidx) {
         /* wrap to a newline and reindent */
         printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
         cidx = indent;
@@ -177,10 +189,21 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
     free(wcstr);
 }
 
-/* TODO: actually implement */
-static void indentpad_r(int __attribute__((unused)) pad, unsigned short indent, unsigned short cols, size_t *cidx)
+static void indentpad_r(int pad, unsigned short cols, size_t *saveidx)
 {
-    indentprint_r("  ", indent, cols, cidx);
+    size_t cidx = saveidx ? *saveidx : 0;
+
+    if(cidx == cols - 2)
+        return;
+
+    while(cidx < cols - 1 && pad > 0) {
+        ++cidx;
+        --pad;
+        fputc('_', stdout);
+    }
+
+    if(saveidx)
+        *saveidx = cidx;
 }
 
 static struct table *new_table(void)
@@ -242,7 +265,7 @@ static void print_list(struct table *table, alpm_list_t *list)
         for(i = list; i; i = alpm_list_next(i)) {
             const char *entry = i->data;
             indentprint_r(entry, table->width + 3, table->cols, &cidx);
-            indentpad_r(2, table->width + 3, table->cols, &cidx);
+            indentpad_r(2, table->cols, &cidx);
         }
         printf("\n");
     }
@@ -261,7 +284,7 @@ static void print_deplist(struct table *table, alpm_list_t *list)
             const char *entry = alpm_dep_compute_string(dep);
 
             indentprint_r(entry, table->width + 3, table->cols, &cidx);
-            indentpad_r(2, table->width + 3, table->cols, &cidx);
+            indentpad_r(2, table->cols, &cidx);
         }
         printf("\n");
     }
