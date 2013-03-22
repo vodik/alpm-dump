@@ -263,13 +263,6 @@ static void print_deplist(struct table *table, alpm_list_t *list)
             indentprint_r(entry, table->width + 3, table->cols, &cidx);
             indentpad_r(2, table->width + 3, table->cols, &cidx);
         }
-        /* for(i = list; i; i = alpm_list_next(i)) { */
-        /*     const alpm_depend_t *dep = i->data; */
-        /*     const char *entry = alpm_dep_compute_string(dep); */
-
-        /*     indentprint_r(entry, table->width + 3, table->cols, &cidx); */
-        /*     indentpad_r(2, table->width + 3, table->cols, &cidx); */
-        /* } */
         printf("\n");
     }
 }
