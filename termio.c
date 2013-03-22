@@ -14,25 +14,6 @@
 #define BLUE    "\033[0;34m"
 #define BOLDRED "\033[1;31m"
 
-size_t string_length(const char *s)
-{
-    int len;
-    wchar_t *wcstr;
-
-    if(!s || s[0] == '\0') {
-        return 0;
-    }
-
-    /* len goes from # bytes -> # chars -> # cols */
-    len = strlen(s) + 1;
-    wcstr = calloc(len, sizeof(wchar_t));
-    len = mbstowcs(wcstr, s, len);
-    len = wcswidth(wcstr, len);
-    free(wcstr);
-
-    return len;
-}
-
 unsigned short getcols(int fd)
 {
     const unsigned short default_tty = 80;
@@ -49,6 +30,39 @@ unsigned short getcols(int fd)
     }
 
     return termwidth == 0 ? default_tty : termwidth;
+}
+
+static wchar_t *wide_string(const char *str, size_t *wclen, size_t *graphemes)
+{
+    wchar_t *wcstr = NULL;
+    size_t len = 0;
+
+    if(str && str[0] != '\0') {
+        len = strlen(str) + 1;
+        wcstr = calloc(len, sizeof(wchar_t));
+        len = mbstowcs(wcstr, str, len);
+    }
+
+    if(wclen) {
+        *wclen = len;
+    }
+
+    if(graphemes) {
+        *graphemes = len ? wcswidth(wcstr, len) : 0;
+    }
+
+    return wcstr;
+}
+
+size_t grapheme_count(const char *str)
+{
+    wchar_t *wcstr;
+    size_t graphemes;
+
+    wcstr = wide_string(str, NULL, &graphemes);
+
+    free(wcstr);
+    return graphemes;
 }
 
 void indentprint_r(const char *str, unsigned short indent, unsigned short cols, size_t *saveidx)
@@ -73,10 +87,7 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
         return;
     }
 
-    len = strlen(str) + 1;
-    wcstr = calloc(len, sizeof(wchar_t));
-    len = mbstowcs(wcstr, str, len);
-    len = wcswidth(wcstr, len);
+    wcstr = wide_string(str, NULL, &len);
 
     /* if it turns out the string will fit, just print it */
     if(len + 1 < cols - cidx) {

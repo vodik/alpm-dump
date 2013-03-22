@@ -45,7 +45,7 @@ static struct table *new_table(void)
 static struct table_row *new_row(struct table *table, const char *title)
 {
     struct table_row *row = malloc(sizeof(struct table_row));
-    size_t len = string_length(title);
+    size_t len = grapheme_count(title);
 
     row->title = title;
     if(len > table->width)
