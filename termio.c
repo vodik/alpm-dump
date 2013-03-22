@@ -88,10 +88,12 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
     }
 
     wcstr = wide_string(str, NULL, &len);
+    if (wcstr == NULL || len == 0) {
+        return;
+    }
 
     /* if it turns out the string will fit, just print it */
     if(len + 1 < cols - cidx) {
-        /* fputs(str, stdout); */
         printf(YELLOW "%s" NOCOLOR, str);
         if(saveidx)
             *saveidx = cidx + len;
@@ -99,22 +101,17 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
         return;
     }
 
-    p = wcstr;
-
-    if(!p || !len) {
-        return;
-    }
-
-    const wchar_t *q, *next;
-
-    next = wcschr(p, L' ');
+    /* look for the first space */
+    const wchar_t *next = wcschr(wcstr, L' ');
     if(next == NULL) {
-        next = p + wcslen(p);
+        next = wcstr + wcslen(wcstr);
     }
 
+    p = wcstr;
     len = 0;
-    q = p;
-    for(q = p; q < next; q++) {
+
+    const wchar_t *q;
+    for(q = wcstr; q < next; q++) {
         len += wcwidth(*q);
     }
 
