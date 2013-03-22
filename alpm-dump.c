@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <string.h>
-#include <wchar.h>
-#include <termios.h>
-#include <sys/ioctl.h>
 #include <getopt.h>
 
 #include <alpm.h>

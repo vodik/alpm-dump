@@ -3,15 +3,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <string.h>
 #include <wchar.h>
-#include <termios.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
-#include <getopt.h>
-
-#include <alpm.h>
-#include <alpm_list.h>
 
 #define NOCOLOR "\033[0m"
 #define RED     "\033[0;31m"
