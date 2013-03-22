@@ -11,6 +11,11 @@
 #include <alpm.h>
 #include <alpm_list.h>
 
+#define NOCOLOR "\033[0m"
+#define RED     "\033[0;31m"
+#define YELLOW  "\033[0;33m"
+#define BOLDRED "\033[1;31m"
+
 enum {
     ROW_STRING,
     ROW_LIST,
@@ -97,8 +102,9 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
     len = wcswidth(wcstr, len);
 
     /* if it turns out the string will fit, just print it */
-    if(len < cols - indent - *cidx) {
-        fputs(str, stdout);
+    if(len + 1 <= cols - *cidx) {
+        /* fputs(str, stdout); */
+        printf(YELLOW "%s" NOCOLOR, str);
         free(wcstr);
         *cidx += len;
         return;
@@ -110,12 +116,32 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
         return;
     }
 
+    const wchar_t *q, *next;
+
+    next = wcschr(p, L' ');
+    if(next == NULL) {
+        next = p + wcslen(p);
+    }
+
+    len = 0;
+    q = p;
+    for(q = p; q < next; q++) {
+        len += wcwidth(*q);
+    }
+
+    if(len + 1 > cols - *cidx) {
+        /* wrap to a newline and reindent */
+        printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
+        *cidx = indent;
+    }
+
     while(*p) {
         if(*p == L' ') {
             const wchar_t *q, *next;
             p++;
 
-            if(p == NULL || *p == L' ') {
+            if(p == NULL) {
+            /* if(p == NULL || *p == L' ') { */
                 continue;
             }
 
@@ -132,14 +158,14 @@ static void indentprint_r(const char *str, unsigned short indent, unsigned short
 
             if(len + 1 > cols - *cidx) {
                 /* wrap to a newline and reindent */
-                printf("\n%-*s", (int)indent, "");
+                printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
                 *cidx = indent;
             } else {
                 printf(" ");
                 (*cidx)++;
             }
         } else {
-            printf("%lc", (wint_t)*p++);
+            printf(RED "%lc" NOCOLOR, (wint_t)*p++);
             *cidx += wcwidth(*p);
         }
     }
@@ -232,6 +258,13 @@ static void print_deplist(struct table *table, alpm_list_t *list)
             indentprint_r(entry, table->width + 3, table->cols, &cidx);
             indentpad_r(2, table->width + 3, table->cols, &cidx);
         }
+        /* for(i = list; i; i = alpm_list_next(i)) { */
+        /*     const alpm_depend_t *dep = i->data; */
+        /*     const char *entry = alpm_dep_compute_string(dep); */
+
+        /*     indentprint_r(entry, table->width + 3, table->cols, &cidx); */
+        /*     indentpad_r(2, table->width + 3, table->cols, &cidx); */
+        /* } */
         printf("\n");
     }
 }
@@ -340,5 +373,5 @@ int main(int argc, char *argv[])
         dump_db(db, table);
     }
 
-    /* free(table); */
+    free(table);
 }
