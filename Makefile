@@ -5,7 +5,7 @@ CFLAGS := -std=c99 \
 LDLIBS = -lalpm
 
 all: alpm-dump
-alpm-dump: alpm-dump.o
+alpm-dump: alpm-dump.o termio.c
 
 clean:
 	${RM} alpm-dump *.o
