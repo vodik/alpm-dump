@@ -68,8 +68,7 @@ size_t grapheme_count(const char *str)
 void indentprint_r(const char *str, unsigned short indent, unsigned short cols, size_t *saveidx)
 {
     wchar_t *wcstr;
-    const wchar_t *p;
-    size_t len;
+    size_t len, nlen = 0;
     size_t cidx = saveidx ? *saveidx : 0;
 
     if(!str) {
@@ -105,17 +104,18 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
     const wchar_t *next = wcschr(wcstr, L' ');
     if(next == NULL) {
         next = wcstr + wcslen(wcstr);
+        /* XXX: if this is null, we don't have to worry about
+         * wrapping... */
     }
 
-    p = wcstr;
-    len = 0;
-
+    /* calculate the amount of space between the start and the first
+     * space */
     const wchar_t *q;
     for(q = wcstr; q < next; q++) {
-        len += wcwidth(*q);
+        nlen += wcwidth(*q);
     }
 
-    if(len + 1 > cols - indent) {
+    if(nlen + 1 > cols - indent) {
         /* line is going to be too long, don't even bother trying to
          * wrap it */
         if(cidx > indent)
@@ -126,12 +126,13 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
             *saveidx = cols - 1;
         free(wcstr);
         return;
-    } else if(len + 1 > cols - cidx) {
+    } else if(nlen + 1 > cols - cidx) {
         /* wrap to a newline and reindent */
         printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
         cidx = indent;
     }
 
+    const wchar_t *p = wcstr;
     while(*p) {
         if(*p == L' ') {
             const wchar_t *q, *next;
@@ -147,13 +148,13 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
                 next = p + wcslen(p);
             }
 
-            len = 0;
+            nlen = 0;
             q = p;
             for(q = p; q < next; q++) {
-                len += wcwidth(*q);
+                nlen += wcwidth(*q);
             }
 
-            if(len + 1 > cols - cidx) {
+            if(nlen + 1 > cols - cidx) {
                 /* wrap to a newline and reindent */
                 printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
                 cidx = indent;
