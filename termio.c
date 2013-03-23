@@ -71,23 +71,25 @@ static wchar_t *indentword_t(wchar_t *wcstr, size_t len, unsigned short indent, 
     /* find the first space, set it to \0 */
     wchar_t *next = wcschr(wcstr, L' ');
     if(next != NULL) {
-        *next = L'\0';
+        *next++ = L'\0';
+        len = wcstr - next;
     }
 
     /* calculate the number of columns needed to print the current word */
-    len = wcswidth(wcstr, next ? wcstr - next : len);
+    len = wcswidth(wcstr, len);
 
+    /* line is going to be too long, don't even bother trying to wrap it */
     if(len + 1 > cols - indent) {
-        /* line is going to be too long, don't even bother trying to
-         * wrap it */
         if(*cidx > indent)
             printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
 
         printf(BLUE "%ls" NOCOLOR, wcstr);
         *cidx = cols - 1;
-        return next ? next + 1 : NULL;
-    } else if(len + 1 > cols - *cidx) {
-        /* if the message is long enough, wrap to a newline and re-indent */
+        return next;
+    }
+
+    /* if the message is long enough, wrap to a newline and re-indent */
+    if(len + 1 > cols - *cidx) {
         printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
         *cidx = indent;
     }
@@ -96,12 +98,12 @@ static wchar_t *indentword_t(wchar_t *wcstr, size_t len, unsigned short indent, 
     if(next) {
         printf(RED "%ls " NOCOLOR, wcstr);
         *cidx += len + 1;
-        return next + 1;
+    } else {
+        printf(RED "%ls" NOCOLOR, wcstr);
+        *cidx += len;
     }
 
-    printf(RED "%ls" NOCOLOR, wcstr);
-    *cidx += len;
-    return NULL;
+    return next;
 }
 
 void indentprint_r(const char *str, unsigned short indent, unsigned short cols, unsigned short *saveidx)
