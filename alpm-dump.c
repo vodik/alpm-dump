@@ -85,7 +85,7 @@ static void print_list(struct table *table, alpm_list_t *list)
         printf("None\n");
     } else {
         alpm_list_t *i;
-        size_t cidx = 0;
+        unsigned short cidx = 0;
 
         for(i = list; i; i = alpm_list_next(i)) {
             const char *entry = i->data;
@@ -102,7 +102,7 @@ static void print_deplist(struct table *table, alpm_list_t *list)
         printf("None\n");
     } else {
         alpm_list_t *i;
-        size_t cidx = 0;
+        unsigned short cidx = 0;
 
         for(i = list; i; i = alpm_list_next(i)) {
             const alpm_depend_t *dep = i->data;

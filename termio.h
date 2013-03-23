@@ -7,7 +7,7 @@ unsigned short getcols(int fd);
 
 size_t grapheme_count(const char *s);
 
-void indentprint_r(const char *str, unsigned short indent, unsigned short cols, size_t *saveidx);
-void indentpad_r(int pad, unsigned short cols, size_t *saveidx);
+void indentprint_r(const char *str, unsigned short indent, unsigned short cols, unsigned short *saveidx);
+void indentpad_r(int pad, unsigned short cols, unsigned short *saveidx);
 
 #endif
