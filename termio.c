@@ -65,7 +65,7 @@ size_t grapheme_count(const char *str)
     return graphemes;
 }
 
-static wchar_t *indentword_t(wchar_t *wcstr, unsigned short indent, unsigned short cols, unsigned short *cidx)
+static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned short cols, unsigned short *cidx)
 {
     /* find the first space, set it to \0 */
     wchar_t *next = wcschr(wcstr, L' ');
@@ -138,7 +138,7 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
 
     /* print out message word by word */
     while(wcstr) {
-        wcstr = indentword_t(wcstr, indent, cols, &cidx);
+        wcstr = indentword_r(wcstr, indent, cols, &cidx);
     }
 
 cleanup:
