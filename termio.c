@@ -8,12 +8,6 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-#define NOCOLOR "\033[0m"
-#define RED     "\033[0;31m"
-#define YELLOW  "\033[0;33m"
-#define BLUE    "\033[0;34m"
-#define BOLDRED "\033[1;31m"
-
 unsigned short getcols(int fd)
 {
     const unsigned short default_tty = 80;
@@ -80,39 +74,39 @@ static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned sho
     /* line is going to be too long, don't even bother trying to wrap it */
     if(len + 1 > cols - indent) {
         if(*cidx > indent)
-            printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
+            printf("\n%-*s", (int)indent, "");
 
-        printf(BLUE "%ls" NOCOLOR, wcstr);
+        printf("%ls", wcstr);
         *cidx = cols - 1;
         return next;
     }
 
     /* if the message is long enough, wrap to a newline and re-indent */
     if(len + 1 > cols - *cidx) {
-        printf(BOLDRED "\n%-*s" NOCOLOR, (int)indent, "-->");
+        printf("\n%-*s", (int)indent, "");
         *cidx = indent;
     }
 
     /* print the word */
     if(next) {
-        printf(RED "%ls " NOCOLOR, wcstr);
+        printf("%ls ", wcstr);
         *cidx += len + 1;
     } else {
-        printf(RED "%ls" NOCOLOR, wcstr);
+        printf("%ls" , wcstr);
         *cidx += len;
     }
 
     return next;
 }
 
-void indentprint_r(const char *str, unsigned short indent, unsigned short cols, unsigned short *saveidx)
+unsigned short indentprint_r(const char *str, unsigned short indent, unsigned short cols, unsigned short cidx)
+
 {
     wchar_t *wcstr;
     size_t len;
-    unsigned short cidx = saveidx ? *saveidx : 0;
 
     if(!str) {
-        return;
+        return cidx;
     }
 
     if(cidx < indent) {
@@ -123,7 +117,7 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
      * sense, print without indenting */
     if(cols == 0 || indent > cols) {
         fputs(str, stdout);
-        return;
+        return cidx;
     }
 
     /* convert to a wide string */
@@ -131,35 +125,32 @@ void indentprint_r(const char *str, unsigned short indent, unsigned short cols, 
 
     /* if it turns out the string will fit, just print it */
     if(len < cols - cidx) {
-        printf(YELLOW "%s" NOCOLOR, str);
+        printf("%s", str);
         cidx += len;
         goto cleanup;
     }
 
     /* print out message word by word */
-    while(wcstr) {
-        wcstr = indentword_r(wcstr, indent, cols, &cidx);
+    wchar_t *buf = wcstr;
+    while(buf) {
+        buf = indentword_r(buf, indent, cols, &cidx);
     }
 
 cleanup:
-    if(saveidx)
-        *saveidx = cidx;
     free(wcstr);
+    return cidx;
 }
 
-void indentpad_r(int pad, unsigned short cols, unsigned short *saveidx)
+unsigned short indentpad_r(int pad, unsigned short cols, unsigned short cidx)
 {
-    size_t cidx = saveidx ? *saveidx : 0;
-
     if(cidx == cols - 2)
-        return;
+        return cidx;
 
     while(cidx < cols - 1 && pad > 0) {
         ++cidx;
         --pad;
-        fputc('_', stdout);
+        putchar(' ');
     }
 
-    if(saveidx)
-        *saveidx = cidx;
+    return cidx;
 }
