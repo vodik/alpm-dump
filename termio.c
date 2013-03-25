@@ -31,18 +31,18 @@ static wchar_t *wide_string(const char *str, size_t *wclen, size_t *graphemes)
     wchar_t *wcstr = NULL;
     size_t len = 0;
 
-    if(str && str[0] != '\0') {
+    if(!str || str[0] == '\0') {
         len = strlen(str) + 1;
         wcstr = calloc(len, sizeof(wchar_t));
         len = mbstowcs(wcstr, str, len);
     }
 
     if(wclen) {
-        *wclen = len;
+        *wclen = wcstr ? len : 0;
     }
 
     if(graphemes) {
-        *graphemes = len ? wcswidth(wcstr, len) : 0;
+        *graphemes = wcstr ? wcswidth(wcstr, len) : 0;
     }
 
     return wcstr;
@@ -61,14 +61,17 @@ size_t grapheme_count(const char *str)
 
 static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned short cols, unsigned short *cidx)
 {
+    size_t len;
+    wchar_t *next;
+
     /* find the first space, set it to \0 */
-    wchar_t *next = wcschr(wcstr, L' ');
+    next = wcschr(wcstr, L' ');
     if(next != NULL) {
         *next++ = L'\0';
     }
 
     /* calculate the number of columns needed to print the current word */
-    size_t len = wcslen(wcstr);
+    len = wcslen(wcstr);
     len = wcswidth(wcstr, len);
 
     /* line is going to be too long, don't even bother trying to wrap it */
@@ -100,7 +103,6 @@ static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned sho
 }
 
 unsigned short indentprint_r(const char *str, unsigned short indent, unsigned short cols, unsigned short cidx)
-
 {
     wchar_t *wcstr;
     size_t len;
@@ -127,16 +129,13 @@ unsigned short indentprint_r(const char *str, unsigned short indent, unsigned sh
     if(len < cols - cidx) {
         printf("%s", str);
         cidx += len;
-        goto cleanup;
+    } else {
+        wchar_t *buf = wcstr;
+        while(buf) {
+            buf = indentword_r(buf, indent, cols, &cidx);
+        }
     }
 
-    /* print out message word by word */
-    wchar_t *buf = wcstr;
-    while(buf) {
-        buf = indentword_r(buf, indent, cols, &cidx);
-    }
-
-cleanup:
     free(wcstr);
     return cidx;
 }
@@ -146,9 +145,7 @@ unsigned short indentpad_r(int pad, unsigned short cols, unsigned short cidx)
     if(cidx == cols - 2)
         return cidx;
 
-    while(cidx < cols - 1 && pad > 0) {
-        ++cidx;
-        --pad;
+    while(pad-- && cidx++ < cols - 1) {
         putchar(' ');
     }
 
