@@ -59,7 +59,7 @@ size_t grapheme_count(const char *str)
 	return graphemes;
 }
 
-static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned short cols, unsigned short *cidx)
+static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned short maxcols, unsigned short *cidx)
 {
 	size_t len;
 	wchar_t *next;
@@ -75,17 +75,17 @@ static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned sho
 	len = wcswidth(wcstr, len);
 
 	/* line is going to be too long, don't even bother trying to wrap it */
-	if(len + 1 > cols - indent) {
+	if(len + 1 > maxcols - indent) {
 		if(*cidx > indent)
 			printf("\n%-*s", (int)indent, "");
 
 		printf("%ls", wcstr);
-		*cidx = cols - 1;
+		*cidx = maxcols - 1;
 		return next;
 	}
 
 	/* if the message is long enough, wrap to a newline and re-indent */
-	if(len + 1 > cols - *cidx) {
+	if(len + 1 > maxcols - *cidx) {
 		printf("\n%-*s", (int)indent, "");
 		*cidx = indent;
 	}
@@ -102,7 +102,7 @@ static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned sho
 	return next;
 }
 
-unsigned short indentprint_r(const char *str, unsigned short indent, unsigned short cols, unsigned short cidx)
+unsigned short indentprint_r(const char *str, unsigned short indent, unsigned short maxcols, unsigned short cidx)
 {
 	wchar_t *wcstr;
 	size_t len;
@@ -117,7 +117,7 @@ unsigned short indentprint_r(const char *str, unsigned short indent, unsigned sh
 
 	/* if we're not a tty, or our tty is not wide enough that wrapping even makes
 	 * sense, print without indenting */
-	if(cols == 0 || indent > cols) {
+	if(maxcols == 0 || indent > maxcols) {
 		fputs(str, stdout);
 		return cidx;
 	}
@@ -126,13 +126,13 @@ unsigned short indentprint_r(const char *str, unsigned short indent, unsigned sh
 	wcstr = wide_string(str, NULL, &len);
 
 	/* if it turns out the string will fit, just print it */
-	if(len < cols - cidx) {
+	if(len < maxcols - cidx) {
 		printf("%s", str);
 		cidx += len;
 	} else {
 		wchar_t *buf = wcstr;
 		while(buf) {
-			buf = indentword_r(buf, indent, cols, &cidx);
+			buf = indentword_r(buf, indent, maxcols, &cidx);
 		}
 	}
 
@@ -140,10 +140,12 @@ unsigned short indentprint_r(const char *str, unsigned short indent, unsigned sh
 	return cidx;
 }
 
-unsigned short indentpad_r(int pad, unsigned short cols, unsigned short cidx)
+unsigned short indentpad_r(int pad, unsigned short maxcols, unsigned short cidx)
 {
-	if(cols) {
-		while(pad-- && cidx++ < cols - 1) {
+	/* add as many spaces as we can until we hit the right edge of the
+	 * screen */
+	if(maxcols) {
+		while(pad-- && cidx++ < maxcols - 1) {
 			putchar(' ');
 		}
 	} else {
