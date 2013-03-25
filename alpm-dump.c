@@ -89,8 +89,8 @@ static void print_list(struct table *table, alpm_list_t *list)
 
         for(i = list; i; i = alpm_list_next(i)) {
             const char *entry = i->data;
-            indentprint_r(entry, table->width + 3, table->cols, &cidx);
-            indentpad_r(2, table->cols, &cidx);
+            cidx = indentprint_r(entry, table->width + 3, table->cols, cidx);
+            cidx = indentpad_r(2, table->cols, cidx);
         }
         printf("\n");
     }
@@ -106,10 +106,11 @@ static void print_deplist(struct table *table, alpm_list_t *list)
 
         for(i = list; i; i = alpm_list_next(i)) {
             const alpm_depend_t *dep = i->data;
-            const char *entry = alpm_dep_compute_string(dep);
+            char *entry = alpm_dep_compute_string(dep);
 
-            indentprint_r(entry, table->width + 3, table->cols, &cidx);
-            indentpad_r(2, table->cols, &cidx);
+            cidx = indentprint_r(entry, table->width + 3, table->cols, cidx);
+            cidx = indentpad_r(2, table->cols, cidx);
+            free(entry);
         }
         printf("\n");
     }
@@ -125,7 +126,7 @@ static void print_table(struct table *table, alpm_pkg_t *pkg)
         printf("%-*s : ", (int)table->width, row->title);
         switch(row->id) {
         case ROW_STRING:
-            indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, NULL);
+            indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, 0);
             printf("\n");
             break;
         case ROW_LIST:
