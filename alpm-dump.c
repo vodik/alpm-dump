@@ -124,6 +124,7 @@ static void print_table(struct table *table, alpm_pkg_t *pkg)
         const struct table_row *row = i->data;
 
         printf("%-*s : ", (int)table->width, row->title);
+
         switch(row->id) {
         case ROW_STRING:
             indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, 0);
@@ -218,5 +219,6 @@ int main(int argc, char *argv[])
         dump_db(db, table);
     }
 
+    alpm_list_free_inner(table->table, free);
     free(table);
 }
