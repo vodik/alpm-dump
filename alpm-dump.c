@@ -191,9 +191,9 @@ int main(int argc, char *argv[])
     add_string_row(table,  "URL",          alpm_pkg_get_url);
     add_list_row(table,    "Licenses",     alpm_pkg_get_licenses);
     add_list_row(table,    "Groups",       alpm_pkg_get_groups);
-    add_string_row(table,  "Packager",     alpm_pkg_get_packager);
     add_deplist_row(table, "Provides",     alpm_pkg_get_provides);
     add_deplist_row(table, "Depends On",   alpm_pkg_get_depends);
+    add_string_row(table,  "Packager",     alpm_pkg_get_packager);
 
     if(sync) {
         const char *dbs[] = {
