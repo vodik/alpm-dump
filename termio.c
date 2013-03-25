@@ -42,7 +42,7 @@ static wchar_t *wide_string(const char *str, size_t *wclen, size_t *graphemes)
     }
 
     if(graphemes) {
-        *graphemes = wcstr ? wcswidth(wcstr, len) : 0;
+        *graphemes = len ? wcswidth(wcstr, len) : 0;
     }
 
     return wcstr;
