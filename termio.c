@@ -31,7 +31,7 @@ static wchar_t *wide_string(const char *str, size_t *wclen, size_t *graphemes)
     wchar_t *wcstr = NULL;
     size_t len = 0;
 
-    if(!str || str[0] == '\0') {
+    if(str && str[0] != '\0') {
         len = strlen(str) + 1;
         wcstr = calloc(len, sizeof(wchar_t));
         len = mbstowcs(wcstr, str, len);
