@@ -142,12 +142,13 @@ unsigned short indentprint_r(const char *str, unsigned short indent, unsigned sh
 
 unsigned short indentpad_r(int pad, unsigned short cols, unsigned short cidx)
 {
-	if(cidx == cols - 2) {
-		return cidx;
-	}
-
-	while(pad-- && cidx++ < cols - 1) {
-		putchar(' ');
+	if(cols) {
+		while(pad-- && cidx++ < cols - 1) {
+			putchar(' ');
+		}
+	} else {
+		printf("%-*s", pad, "");
+		cidx += pad;
 	}
 
 	return cidx;
