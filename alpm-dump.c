@@ -407,13 +407,12 @@ int main(int argc, char *argv[])
             "community",
             "multilib-testing",
             "multilib",
-            NULL
         };
 
         /* dump out the databases */
-        const char **i;
-        for(i = dbs; *i != NULL; ++i) {
-            alpm_db_t *db = alpm_register_syncdb(handle, *i, ALPM_SIG_USE_DEFAULT);
+        size_t i;
+        for(i = 0; i < sizeof(dbs) / sizeof(dbs[0]); ++i) {
+            alpm_db_t *db = alpm_register_syncdb(handle, dbs[i], ALPM_SIG_USE_DEFAULT);
             dump_db(db, table);
         }
     } else {
