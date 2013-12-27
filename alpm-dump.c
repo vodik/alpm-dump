@@ -1,12 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 #include <getopt.h>
 
 #include <alpm.h>
 #include <alpm_list.h>
 
 #include "termio.h"
+
+static alpm_handle_t *handle;
 
 enum table_entry_type {
     ENTRY_REPOSITORY,
@@ -19,10 +22,12 @@ enum table_entry_type {
     ENTRY_GROUPS,
     ENTRY_PROVIDES,
     ENTRY_DEPENDS,
+    ENTRY_OPTIONAL,
     ENTRY_REQUIRED,
     ENTRY_OPTIONAL_FOR,
     ENTRY_CONFLICTS,
     ENTRY_REPLACES,
+    ENTRY_DOWNLOAD_SIZE,
     ENTRY_INSTALL_SIZE,
     ENTRY_PACKAGER,
     ENTRY_BUILD_DATE,
@@ -34,7 +39,6 @@ enum table_entry_type {
 };
 
 static const char *local_table[LAST_ENTRY] = {
-    [ENTRY_REPOSITORY]   = "Repository",
     [ENTRY_NAME]         = "Name",
     [ENTRY_VERSION]      = "Version",
     [ENTRY_DESCRIPTION]  = "Description",
@@ -43,6 +47,7 @@ static const char *local_table[LAST_ENTRY] = {
     [ENTRY_LICENSES]     = "Licenses",
     [ENTRY_GROUPS]       = "Groups",
     [ENTRY_PROVIDES]     = "Provides",
+    [ENTRY_OPTIONAL]     = "Optional Deps",
     [ENTRY_DEPENDS]      = "Depends On",
     [ENTRY_REQUIRED]     = "Required By",
     [ENTRY_INSTALL_SIZE] = "Install Size",
@@ -52,6 +57,9 @@ static const char *local_table[LAST_ENTRY] = {
     [ENTRY_PACKAGER]     = "Packager",
     [ENTRY_BUILD_DATE]   = "Build Date",
     [ENTRY_INSTALL_DATE] = "Install Date",
+    [ENTRY_INSTALL_REASON] = "Install Reason",
+    [ENTRY_INSTALL_SCRIPT] = "Install Script",
+    [ENTRY_VALIDATED]    = "Validation",
 };
 
 static const char *sync_table[LAST_ENTRY] = {
@@ -65,11 +73,14 @@ static const char *sync_table[LAST_ENTRY] = {
     [ENTRY_GROUPS]       = "Groups",
     [ENTRY_PROVIDES]     = "Provides",
     [ENTRY_DEPENDS]      = "Depends On",
-    [ENTRY_INSTALL_SIZE] = "Install Size",
+    [ENTRY_OPTIONAL]     = "Optional Deps",
     [ENTRY_CONFLICTS]    = "Conflicts With",
     [ENTRY_REPLACES]     = "Replaces",
+    [ENTRY_DOWNLOAD_SIZE] = "Download Size",
+    [ENTRY_INSTALL_SIZE] = "Install Size",
     [ENTRY_PACKAGER]     = "Packager",
     [ENTRY_BUILD_DATE]   = "Build Date",
+    [ENTRY_VALIDATED]    = "Validated By",
 };
 
 static size_t max_padding(const char *entries[static LAST_ENTRY])
@@ -121,6 +132,35 @@ static void print_deplist(alpm_list_t *list, unsigned short offset)
             free(entry);
         }
     }
+}
+
+static void print_optdeplist(alpm_pkg_t *pkg, unsigned short offset)
+{
+    alpm_list_t *i;
+    int first = 1;
+
+    for(i = alpm_pkg_get_optdepends(pkg); i; i = alpm_list_next(i)) {
+        alpm_depend_t *optdep = i->data;
+        char *depstring = alpm_dep_compute_string(optdep);
+
+        if (!first)
+            printf("\n%-*s", offset, "");
+
+        int cidx = indentprint_r(depstring, offset, 0);
+
+        if(alpm_pkg_get_origin(pkg) == ALPM_PKG_FROM_LOCALDB) {
+            if(alpm_db_get_pkg(alpm_get_localdb(handle), optdep->name))
+                indentprint_r(" [installed]", offset, cidx);
+        }
+
+        first = 0;
+        free(depstring);
+    }
+}
+
+static void print_bool(int b, unsigned short offset)
+{
+    indentprint_r(b ? "Yes" : "No", offset, 0);
 }
 
 /* {{{ */
@@ -180,6 +220,50 @@ static void print_date(time_t date, unsigned short offset)
     indentprint_r(datestr, offset, 0);
 }
 
+static void print_reason(alpm_pkgreason_t r, unsigned short offset)
+{
+    const char *reason;
+
+    switch(r) {
+    case ALPM_PKG_REASON_EXPLICIT:
+        reason = "Explicitly installed";
+        break;
+    case ALPM_PKG_REASON_DEPEND:
+        reason = "Installed as a dependency for another package";
+        break;
+    default:
+        reason = "Unknown";
+        break;
+    }
+
+    indentprint_r(reason, offset, 0);
+}
+
+static void print_validation(alpm_pkgvalidation_t v, unsigned short offset)
+{
+    alpm_list_t *validation = NULL;
+
+    if(v) {
+        if(v & ALPM_PKG_VALIDATION_NONE) {
+            validation = alpm_list_add(validation, "None");
+        } else {
+            if(v & ALPM_PKG_VALIDATION_MD5SUM) {
+                validation = alpm_list_add(validation, "MD5 Sum");
+            }
+            if(v & ALPM_PKG_VALIDATION_SHA256SUM) {
+                validation = alpm_list_add(validation, "SHA256 Sum");
+            }
+            if(v & ALPM_PKG_VALIDATION_SIGNATURE) {
+                validation = alpm_list_add(validation, "Signature");
+            }
+        }
+    } else {
+        validation = alpm_list_add(validation, "Unknown");
+    }
+
+    print_list(validation, offset);
+}
+
 static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
 {
     int i;
@@ -224,8 +308,14 @@ static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
         case ENTRY_DEPENDS:
             print_deplist(alpm_pkg_get_depends(pkg), width);
             break;
+        case ENTRY_OPTIONAL:
+            print_optdeplist(pkg, width);
+            break;
         case ENTRY_REQUIRED:
             print_list(alpm_pkg_compute_requiredby(pkg), width);
+            break;
+        case ENTRY_DOWNLOAD_SIZE:
+            print_filesize(alpm_pkg_get_size(pkg), width);
             break;
         case ENTRY_INSTALL_SIZE:
             print_filesize(alpm_pkg_get_isize(pkg), width);
@@ -249,10 +339,13 @@ static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
             print_date((time_t)alpm_pkg_get_installdate(pkg), width);
             break;
         case ENTRY_INSTALL_REASON:
+            print_reason(alpm_pkg_get_reason(pkg), width);
             break;
         case ENTRY_INSTALL_SCRIPT:
+            print_bool(alpm_pkg_has_scriptlet(pkg), width);
             break;
         case ENTRY_VALIDATED:
+            print_validation(alpm_pkg_get_validation(pkg), width);
             break;
         default:
             break;
@@ -299,7 +392,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    alpm_handle_t *handle = alpm_initialize("/", "/var/lib/pacman/", NULL);
+    handle = alpm_initialize("/", "/var/lib/pacman/", NULL);
     alpm_list_t *sync_dbs = sync_dbs = alpm_get_syncdbs(handle);
 
     if(sync) {
