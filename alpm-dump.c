@@ -241,14 +241,20 @@ static void print_validation(alpm_pkgvalidation_t v, unsigned short offset)
 {
     alpm_list_t *validation = NULL;
 
-    if(v & ALPM_PKG_VALIDATION_NONE) {
-        validation = alpm_list_add(validation, "None");
-    } else if(v & ALPM_PKG_VALIDATION_MD5SUM) {
-        validation = alpm_list_add(validation, "MD5 Sum");
-    } else if(v & ALPM_PKG_VALIDATION_SHA256SUM) {
-        validation = alpm_list_add(validation, "SHA256 Sum");
-    } else if(v & ALPM_PKG_VALIDATION_SIGNATURE) {
-        validation = alpm_list_add(validation, "Signature");
+    if(v) {
+        if(v & ALPM_PKG_VALIDATION_NONE) {
+            validation = alpm_list_add(validation, "None");
+        } else {
+            if(v & ALPM_PKG_VALIDATION_MD5SUM) {
+                validation = alpm_list_add(validation, "MD5 Sum");
+            }
+            if(v & ALPM_PKG_VALIDATION_SHA256SUM) {
+                validation = alpm_list_add(validation, "SHA256 Sum");
+            }
+            if(v & ALPM_PKG_VALIDATION_SIGNATURE) {
+                validation = alpm_list_add(validation, "Signature");
+            }
+        }
     } else {
         validation = alpm_list_add(validation, "Unknown");
     }
