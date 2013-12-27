@@ -7,8 +7,8 @@ unsigned short getcols(int fd);
 
 size_t grapheme_count(const char *s);
 
-unsigned short indentpad_r(int pad, unsigned short maxcols, unsigned short cidx);
-unsigned short indentprint_r(const char *str, unsigned short indent, unsigned short maxcols, unsigned short cidx);
+unsigned short indentpad_r(int pad, unsigned short cidx);
+unsigned short indentprint_r(const char *str, unsigned short indent, unsigned short cidx);
 
 #endif /* _PM_TERMIO_H */
 

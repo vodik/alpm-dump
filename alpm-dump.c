@@ -1,4 +1,3 @@
-#define _XOPEN_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -9,97 +8,57 @@
 
 #include "termio.h"
 
-enum {
-    ROW_STRING,
-    ROW_LIST,
-    ROW_DEPLIST
+enum table_entry_type {
+    ENTRY_REPOSITORY,
+    ENTRY_NAME,
+    ENTRY_VERSION,
+    ENTRY_DESCRIPTION,
+    ENTRY_ARCHITECTURE,
+    ENTRY_URL,
+    ENTRY_LICENSES,
+    ENTRY_GROUPS,
+    ENTRY_PROVIDES,
+    ENTRY_DEPENDS,
+    ENTRY_PACKAGER,
+    LAST_ENTRY
 };
 
-struct table {
-    unsigned short width, cols;
-    alpm_list_t *table;
-};
-
-typedef const char *(*fetch_string_fn)(alpm_pkg_t *pkg);
-typedef alpm_list_t *(*fetch_list_fn)(alpm_pkg_t *pkg);
-
-struct table_row {
-    const char *title;
-
-    int id;
-    fetch_string_fn string_fn;
-    fetch_list_fn   list_fn;
-};
-
-static struct table *new_table(void)
+static size_t max_padding(const char *entries[static LAST_ENTRY])
 {
-    struct table *table = malloc(sizeof(struct table));
+    int i;
+    size_t max = 0;
 
-    table->table = NULL;
-    table->width = 0;
-    table->cols = getcols(0);
+    for (i = 0; i < LAST_ENTRY; ++i) {
+        if (entries[i]) {
+            size_t len = grapheme_count(entries[i]);
+            if (len > max)
+                max = len;
+        }
+    }
 
-    return table;
+    return max;
 }
 
-static struct table_row *new_row(struct table *table, const char *title)
-{
-    struct table_row *row = malloc(sizeof(struct table_row));
-    size_t len = grapheme_count(title);
-
-    row->title = title;
-    if(len > table->width)
-        table->width = len;
-
-    table->table = alpm_list_add(table->table, row);
-    return row;
-}
-
-static void add_string_row(struct table *table, const char *title, fetch_string_fn fetch)
-{
-    struct table_row *row = new_row(table, title);
-
-    row->string_fn = fetch;
-    row->id = ROW_STRING;
-}
-
-static void add_list_row(struct table *table, const char *title, fetch_list_fn fetch)
-{
-    struct table_row *row = new_row(table, title);
-
-    row->list_fn = fetch;
-    row->id = ROW_LIST;
-}
-
-static void add_deplist_row(struct table *table, const char *title, fetch_list_fn fetch)
-{
-    struct table_row *row = new_row(table, title);
-
-    row->list_fn = fetch;
-    row->id = ROW_DEPLIST;
-}
-
-static void print_list(struct table *table, alpm_list_t *list)
+static void print_list(alpm_list_t *list, unsigned short offset)
 {
     if(list == NULL) {
-        printf("None\n");
+        printf("None");
     } else {
         alpm_list_t *i;
         unsigned short cidx = 0;
 
         for(i = list; i; i = alpm_list_next(i)) {
             const char *entry = i->data;
-            cidx = indentprint_r(entry, table->width + 3, table->cols, cidx);
-            cidx = indentpad_r(2, table->cols, cidx);
+            cidx = indentprint_r(entry, offset, cidx);
+            cidx = indentpad_r(2, cidx);
         }
-        printf("\n");
     }
 }
 
-static void print_deplist(struct table *table, alpm_list_t *list)
+static void print_deplist(alpm_list_t *list, unsigned short offset)
 {
     if(list == NULL) {
-        printf("None\n");
+        printf("None");
     } else {
         alpm_list_t *i;
         unsigned short cidx = 0;
@@ -108,51 +67,77 @@ static void print_deplist(struct table *table, alpm_list_t *list)
             const alpm_depend_t *dep = i->data;
             char *entry = alpm_dep_compute_string(dep);
 
-            cidx = indentprint_r(entry, table->width + 3, table->cols, cidx);
-            cidx = indentpad_r(2, table->cols, cidx);
+            cidx = indentprint_r(entry, offset, cidx);
+            cidx = indentpad_r(2, cidx);
             free(entry);
         }
-        printf("\n");
     }
 }
 
-static void print_table(struct table *table, alpm_pkg_t *pkg)
+static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
 {
-    alpm_list_t *i;
+    int i;
+    size_t max_width = max_padding(table);
 
-    for(i = table->table; i; i = alpm_list_next(i)) {
-        const struct table_row *row = i->data;
+    for(i = 0; i < LAST_ENTRY; ++i) {
+        if (!table[i])
+            continue;
 
-        printf("%-*s : ", (int)table->width, row->title);
+        size_t width = max_width;
+        printf("\033[1m%-*s\033[0m : ", (int)width, table[i]);
+        width += 3;
 
-        switch(row->id) {
-        case ROW_STRING:
-            indentprint_r(row->string_fn(pkg), table->width + 3, table->cols, 0);
-            printf("\n");
+        switch(i) {
+        case ENTRY_REPOSITORY:
+            indentprint_r(alpm_db_get_name(alpm_pkg_get_db(pkg)), width, 0);
             break;
-        case ROW_LIST:
-            print_list(table, row->list_fn(pkg));
+        case ENTRY_NAME:
+            indentprint_r(alpm_pkg_get_name(pkg), width, 0);
             break;
-        case ROW_DEPLIST:
-            print_deplist(table, row->list_fn(pkg));
+        case ENTRY_VERSION:
+            indentprint_r(alpm_pkg_get_version(pkg), width, 0);
+            break;
+        case ENTRY_DESCRIPTION:
+            indentprint_r(alpm_pkg_get_desc(pkg), width, 0);
+            break;
+        case ENTRY_ARCHITECTURE:
+            indentprint_r(alpm_pkg_get_arch(pkg), width, 0);
+            break;
+        case ENTRY_URL:
+            indentprint_r(alpm_pkg_get_url(pkg), width, 0);
+            break;
+        case ENTRY_LICENSES:
+            print_list(alpm_pkg_get_licenses(pkg), width);
+            break;
+        case ENTRY_GROUPS:
+            print_list(alpm_pkg_get_groups(pkg), width);
+            break;
+        case ENTRY_PROVIDES:
+            print_deplist(alpm_pkg_get_provides(pkg), width);
+            break;
+        case ENTRY_DEPENDS:
+            print_deplist(alpm_pkg_get_depends(pkg), width);
+            break;
+        case ENTRY_PACKAGER:
+            indentprint_r(alpm_pkg_get_packager(pkg), width, 0);
+            break;
+        default:
             break;
         }
+
+        putchar('\n');
     }
-    printf("\n");
+
+    putchar('\n');
 }
 
-static void dump_db(alpm_db_t *db, struct table *table)
+static void dump_db(alpm_db_t *db, const char *table[static LAST_ENTRY])
 {
     alpm_list_t *i, *cache = alpm_db_get_pkgcache(db);
 
     for(i = cache; i; i = alpm_list_next(i)) {
-        print_table(table, i->data);
+        print_table(table, (alpm_pkg_t *)i->data);
     }
-}
-
-static const char *alpm_pkg_get_dbname(alpm_pkg_t *pkg)
-{
-    return alpm_db_get_name(alpm_pkg_get_db(pkg));
 }
 
 int main(int argc, char *argv[])
@@ -182,18 +167,19 @@ int main(int argc, char *argv[])
     alpm_handle_t *handle = alpm_initialize("/", "/var/lib/pacman/", NULL);
     alpm_list_t *sync_dbs = sync_dbs = alpm_get_syncdbs(handle);
 
-    struct table *table = new_table();
-    add_string_row(table,  "Repository",   alpm_pkg_get_dbname);
-    add_string_row(table,  "Name",         alpm_pkg_get_name);
-    add_string_row(table,  "Version",      alpm_pkg_get_version);
-    add_string_row(table,  "Description",  alpm_pkg_get_desc);
-    add_string_row(table,  "Architecture", alpm_pkg_get_arch);
-    add_string_row(table,  "URL",          alpm_pkg_get_url);
-    add_list_row(table,    "Licenses",     alpm_pkg_get_licenses);
-    add_list_row(table,    "Groups",       alpm_pkg_get_groups);
-    add_deplist_row(table, "Provides",     alpm_pkg_get_provides);
-    add_deplist_row(table, "Depends On",   alpm_pkg_get_depends);
-    add_string_row(table,  "Packager",     alpm_pkg_get_packager);
+    static const char *table[LAST_ENTRY] = {
+        [ENTRY_REPOSITORY]   = "Repository",
+        [ENTRY_NAME]         = "Name",
+        [ENTRY_VERSION]      = "Version",
+        [ENTRY_DESCRIPTION]  = "Description",
+        [ENTRY_ARCHITECTURE] = "Architecture",
+        [ENTRY_URL]          = "URL",
+        [ENTRY_LICENSES]     = "Licenses",
+        [ENTRY_GROUPS]       = "Groups",
+        [ENTRY_PROVIDES]     = "Provides",
+        [ENTRY_DEPENDS]      = "Depends On",
+        [ENTRY_PACKAGER]     = "Packager"
+    };
 
     if(sync) {
         const char *dbs[] = {
@@ -218,7 +204,4 @@ int main(int argc, char *argv[])
         alpm_db_t *db = alpm_get_localdb(handle);
         dump_db(db, table);
     }
-
-    alpm_list_free_inner(table->table, free);
-    free(table);
 }
