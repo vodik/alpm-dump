@@ -108,8 +108,7 @@ static void print_list(alpm_list_t *list, unsigned short offset)
         unsigned short cidx = 0;
 
         for(i = list; i; i = alpm_list_next(i)) {
-            const char *entry = i->data;
-            cidx = indentprint_r(entry, offset, cidx);
+            cidx = indentprint_r(i->data, offset, cidx);
             cidx = indentpad_r(2, cidx);
         }
     }
@@ -124,8 +123,7 @@ static void print_deplist(alpm_list_t *list, unsigned short offset)
         unsigned short cidx = 0;
 
         for(i = list; i; i = alpm_list_next(i)) {
-            const alpm_depend_t *dep = i->data;
-            char *entry = alpm_dep_compute_string(dep);
+            char *entry = alpm_dep_compute_string(i->data);
 
             cidx = indentprint_r(entry, offset, cidx);
             cidx = indentpad_r(2, cidx);
@@ -134,27 +132,27 @@ static void print_deplist(alpm_list_t *list, unsigned short offset)
     }
 }
 
+static void print_optentry(alpm_pkg_t *pkg, alpm_depend_t *optdep, unsigned short offset)
+{
+    char *depstring = alpm_dep_compute_string(optdep);
+    int cidx = indentprint_r(depstring, offset, 0);
+
+    if(alpm_pkg_get_origin(pkg) == ALPM_PKG_FROM_LOCALDB &&
+       alpm_db_get_pkg(alpm_get_localdb(handle), optdep->name))
+        indentprint_r(" [installed]", offset, cidx);
+}
+
 static void print_optdeplist(alpm_pkg_t *pkg, unsigned short offset)
 {
-    alpm_list_t *i;
-    int first = 1;
+    alpm_list_t *i = alpm_pkg_get_optdepends(pkg);
 
-    for(i = alpm_pkg_get_optdepends(pkg); i; i = alpm_list_next(i)) {
-        alpm_depend_t *optdep = i->data;
-        char *depstring = alpm_dep_compute_string(optdep);
+    if (!i)
+        return;
 
-        if (!first)
-            printf("\n%-*s", offset, "");
-
-        int cidx = indentprint_r(depstring, offset, 0);
-
-        if(alpm_pkg_get_origin(pkg) == ALPM_PKG_FROM_LOCALDB) {
-            if(alpm_db_get_pkg(alpm_get_localdb(handle), optdep->name))
-                indentprint_r(" [installed]", offset, cidx);
-        }
-
-        first = 0;
-        free(depstring);
+    print_optentry(pkg, i->data, offset);
+    for(i = alpm_list_next(i); i; i = alpm_list_next(i)) {
+        printf("\n%-*s", offset, "");
+        print_optentry(pkg, i->data, offset);
     }
 }
 
@@ -243,20 +241,14 @@ static void print_validation(alpm_pkgvalidation_t v, unsigned short offset)
 {
     alpm_list_t *validation = NULL;
 
-    if(v) {
-        if(v & ALPM_PKG_VALIDATION_NONE) {
-            validation = alpm_list_add(validation, "None");
-        } else {
-            if(v & ALPM_PKG_VALIDATION_MD5SUM) {
-                validation = alpm_list_add(validation, "MD5 Sum");
-            }
-            if(v & ALPM_PKG_VALIDATION_SHA256SUM) {
-                validation = alpm_list_add(validation, "SHA256 Sum");
-            }
-            if(v & ALPM_PKG_VALIDATION_SIGNATURE) {
-                validation = alpm_list_add(validation, "Signature");
-            }
-        }
+    if(v & ALPM_PKG_VALIDATION_NONE) {
+        validation = alpm_list_add(validation, "None");
+    } else if(v & ALPM_PKG_VALIDATION_MD5SUM) {
+        validation = alpm_list_add(validation, "MD5 Sum");
+    } else if(v & ALPM_PKG_VALIDATION_SHA256SUM) {
+        validation = alpm_list_add(validation, "SHA256 Sum");
+    } else if(v & ALPM_PKG_VALIDATION_SIGNATURE) {
+        validation = alpm_list_add(validation, "Signature");
     } else {
         validation = alpm_list_add(validation, "Unknown");
     }
@@ -348,6 +340,7 @@ static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
             print_validation(alpm_pkg_get_validation(pkg), width);
             break;
         default:
+            indentprint_r("Unknown field", width, 0);
             break;
         }
 
@@ -362,7 +355,7 @@ static void dump_db(alpm_db_t *db, const char *table[static LAST_ENTRY])
     alpm_list_t *i, *cache = alpm_db_get_pkgcache(db);
 
     for(i = cache; i; i = alpm_list_next(i)) {
-        print_table(table, (alpm_pkg_t *)i->data);
+        print_table(table, i->data);
     }
 }
 
