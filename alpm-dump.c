@@ -49,7 +49,9 @@ static const char *local_table[LAST_ENTRY] = {
     [ENTRY_OPTIONAL_FOR] = "Optional For",
     [ENTRY_CONFLICTS]    = "Conflicts With",
     [ENTRY_REPLACES]     = "Replaces",
-    [ENTRY_PACKAGER]     = "Packager"
+    [ENTRY_PACKAGER]     = "Packager",
+    [ENTRY_BUILD_DATE]   = "Build Date",
+    [ENTRY_INSTALL_DATE] = "Install Date",
 };
 
 static const char *sync_table[LAST_ENTRY] = {
@@ -66,7 +68,8 @@ static const char *sync_table[LAST_ENTRY] = {
     [ENTRY_INSTALL_SIZE] = "Install Size",
     [ENTRY_CONFLICTS]    = "Conflicts With",
     [ENTRY_REPLACES]     = "Replaces",
-    [ENTRY_PACKAGER]     = "Packager"
+    [ENTRY_PACKAGER]     = "Packager",
+    [ENTRY_BUILD_DATE]   = "Build Date",
 };
 
 static size_t max_padding(const char *entries[static LAST_ENTRY])
@@ -170,6 +173,13 @@ static void print_filesize(off_t size, unsigned short offset)
     printf("%6.2f %s", _size, label);
 }
 
+static void print_date(time_t date, unsigned short offset)
+{
+    char datestr[50];
+    strftime(datestr, 50, "%c", localtime(&date));
+    indentprint_r(datestr, offset, 0);
+}
+
 static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
 {
     int i;
@@ -233,8 +243,10 @@ static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
             indentprint_r(alpm_pkg_get_packager(pkg), width, 0);
             break;
         case ENTRY_BUILD_DATE:
+            print_date((time_t)alpm_pkg_get_builddate(pkg), width);
             break;
         case ENTRY_INSTALL_DATE:
+            print_date((time_t)alpm_pkg_get_installdate(pkg), width);
             break;
         case ENTRY_INSTALL_REASON:
             break;
