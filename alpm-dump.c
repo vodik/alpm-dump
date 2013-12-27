@@ -103,14 +103,15 @@ static void print_list(alpm_list_t *list, unsigned short offset)
 {
     if(list == NULL) {
         printf("None");
-    } else {
-        alpm_list_t *i;
-        unsigned short cidx = 0;
+        return;
+    }
 
-        for(i = list; i; i = alpm_list_next(i)) {
-            cidx = indentprint_r(i->data, offset, cidx);
-            cidx = indentpad_r(2, cidx);
-        }
+    alpm_list_t *i;
+    unsigned short cidx = 0;
+
+    for(i = list; i; i = alpm_list_next(i)) {
+        cidx = indentprint_r(i->data, offset, cidx);
+        cidx = indentpad_r(2, cidx);
     }
 }
 
@@ -118,17 +119,18 @@ static void print_deplist(alpm_list_t *list, unsigned short offset)
 {
     if(list == NULL) {
         printf("None");
-    } else {
-        alpm_list_t *i;
-        unsigned short cidx = 0;
+        return;
+    }
 
-        for(i = list; i; i = alpm_list_next(i)) {
-            char *entry = alpm_dep_compute_string(i->data);
+    alpm_list_t *i;
+    unsigned short cidx = 0;
 
-            cidx = indentprint_r(entry, offset, cidx);
-            cidx = indentpad_r(2, cidx);
-            free(entry);
-        }
+    for(i = list; i; i = alpm_list_next(i)) {
+        char *entry = alpm_dep_compute_string(i->data);
+
+        cidx = indentprint_r(entry, offset, cidx);
+        cidx = indentpad_r(2, cidx);
+        free(entry);
     }
 }
 
@@ -146,8 +148,10 @@ static void print_optdeplist(alpm_pkg_t *pkg, unsigned short offset)
 {
     alpm_list_t *i = alpm_pkg_get_optdepends(pkg);
 
-    if (!i)
+    if (i == NULL) {
+        printf("None");
         return;
+    }
 
     print_optentry(pkg, i->data, offset);
     for(i = alpm_list_next(i); i; i = alpm_list_next(i)) {
@@ -403,7 +407,6 @@ int main(int argc, char *argv[])
             "community",
             "multilib-testing",
             "multilib",
-            "heftig",
             NULL
         };
 
