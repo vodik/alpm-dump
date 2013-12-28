@@ -208,7 +208,7 @@ static double humanize_size(off_t bytes, const char target_unit, int precision,
 }
 /* }}} */
 
-static void print_filesize(off_t size, unsigned short offset)
+static void print_filesize(off_t size)
 {
 	const char *label;
 	double _size = humanize_size(size, '\0', 2, &label);
@@ -231,7 +231,7 @@ static void print_reason(alpm_pkgreason_t r, unsigned short offset)
 			reason = "Explicitly installed";
 			break;
 		case ALPM_PKG_REASON_DEPEND:
-			reason = "Installed as a dependency foranother package";
+			reason = "Installed as a dependency for another package";
 			break;
 		default:
 			reason = "Unknown";
@@ -317,10 +317,10 @@ static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
 				print_list(alpm_pkg_compute_requiredby(pkg), width);
 				break;
 			case ENTRY_DOWNLOAD_SIZE:
-				print_filesize(alpm_pkg_get_size(pkg), width);
+				print_filesize(alpm_pkg_get_size(pkg));
 				break;
 			case ENTRY_INSTALL_SIZE:
-				print_filesize(alpm_pkg_get_isize(pkg), width);
+				print_filesize(alpm_pkg_get_isize(pkg));
 				break;
 			case ENTRY_OPTIONAL_FOR:
 				print_list(alpm_pkg_compute_optionalfor(pkg), width);
