@@ -104,7 +104,7 @@ static wchar_t *indentword_r(wchar_t *wcstr, unsigned short indent, unsigned sho
 
 unsigned short indentprint_r(const char *str, unsigned short indent, unsigned short cidx)
 {
-	unsigned short maxcols = getcols(0);
+	unsigned short maxcols = getcols(1);
 	wchar_t *wcstr;
 	size_t len;
 
@@ -143,7 +143,7 @@ unsigned short indentprint_r(const char *str, unsigned short indent, unsigned sh
 
 unsigned short indentpad_r(int pad, unsigned short cidx)
 {
-	unsigned short maxcols = getcols(0);
+	unsigned short maxcols = getcols(1);
 
 	/* add as many spaces as we can until we hit the right edge of the
 	 * screen */
