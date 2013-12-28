@@ -208,10 +208,12 @@ static double humanize_size(off_t bytes, const char target_unit, int precision,
 }
 /* }}} */
 
-static void print_filesize(off_t size)
+static void print_filesize(off_t size, char *target_unit)
 {
 	const char *label;
-	double _size = humanize_size(size, '\0', 2, &label);
+	double _size = humanize_size(size, *target_unit, 2, &label);
+	*target_unit = label[0];
+
 	printf("%6.2f %s", _size, label);
 }
 
@@ -270,6 +272,7 @@ static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
 {
 	int i;
 	size_t max_width = max_padding(table);
+	char target_unit = '\0';
 
 	for(i = 0; i < LAST_ENTRY; ++i) {
 		if(!table[i])
@@ -317,10 +320,10 @@ static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
 				print_list(alpm_pkg_compute_requiredby(pkg), width);
 				break;
 			case ENTRY_DOWNLOAD_SIZE:
-				print_filesize(alpm_pkg_get_size(pkg));
+				print_filesize(alpm_pkg_get_size(pkg), &target_unit);
 				break;
 			case ENTRY_INSTALL_SIZE:
-				print_filesize(alpm_pkg_get_isize(pkg));
+				print_filesize(alpm_pkg_get_isize(pkg), &target_unit);
 				break;
 			case ENTRY_OPTIONAL_FOR:
 				print_list(alpm_pkg_compute_optionalfor(pkg), width);
