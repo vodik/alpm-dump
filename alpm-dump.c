@@ -88,10 +88,10 @@ static size_t max_padding(const char *entries[static LAST_ENTRY])
     int i;
     size_t max = 0;
 
-    for (i = 0; i < LAST_ENTRY; ++i) {
-        if (entries[i]) {
+    for(i = 0; i < LAST_ENTRY; ++i) {
+        if(entries[i]) {
             size_t len = grapheme_count(entries[i]);
-            if (len > max)
+            if(len > max)
                 max = len;
         }
     }
@@ -148,7 +148,7 @@ static void print_optdeplist(alpm_pkg_t *pkg, unsigned short offset)
 {
     alpm_list_t *i = alpm_pkg_get_optdepends(pkg);
 
-    if (i == NULL) {
+    if(i == NULL) {
         printf("None");
         return;
     }
@@ -231,7 +231,7 @@ static void print_reason(alpm_pkgreason_t r, unsigned short offset)
         reason = "Explicitly installed";
         break;
     case ALPM_PKG_REASON_DEPEND:
-        reason = "Installed as a dependency for another package";
+        reason = "Installed as a dependency foranother package";
         break;
     default:
         reason = "Unknown";
@@ -272,7 +272,7 @@ static void print_table(const char *table[static LAST_ENTRY], alpm_pkg_t *pkg)
     size_t max_width = max_padding(table);
 
     for(i = 0; i < LAST_ENTRY; ++i) {
-        if (!table[i])
+        if(!table[i])
             continue;
 
         size_t width = max_width;
@@ -379,12 +379,12 @@ int main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
 
-    while (true) {
+    while(true) {
         int opt = getopt_long(argc, argv, "SQ", opts, NULL);
-        if (opt == -1)
+        if(opt == -1)
             break;
 
-        switch (opt) {
+        switch(opt) {
         case 'S':
             table = sync_table;
             sync = 1;
